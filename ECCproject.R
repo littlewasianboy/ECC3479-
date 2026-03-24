@@ -1,0 +1,45 @@
+install.packages("usethis")
+install.packages("gitcreds")
+
+
+usethis::use_git_config(user.name = "littlewasianboy", user.email = "mver0038@student.monash.edu")
+usethis::create_github_token()
+gitcreds::gitcreds_set()
+usethis::git_sitrep()
+
+
+usethis::create_from_github(
+  repo_spec = "littlewasianboy/ECC3479-",
+  destdir = "~/Desktop",  # or wherever you want it saved locally
+  fork = FALSE
+)
+
+gert::git_add(".")
+gert::git_commit("Created the hub")
+gert::git_push()
+
+
+usethis::use_readme_md()
+
+#Testing the github
+
+
+library(ggplot2)
+
+data <- data.frame(
+  year = 2000:2023,
+  smoking_rate = c(24, 23.5, 22.8, 22, 21.5, 21, 20.2, 19.8, 19, 18.5,
+                   18, 17.5, 17, 16.5, 16, 15.5, 15, 14.5, 14, 13.5, 13,
+                   12.8, 12.5, 12.2)
+)
+
+# Simple plot
+ggplot(data, aes(x = year, y = smoking_rate)) +
+  geom_line(colour = "red") +
+  labs(title = "Test Plot", x = "Year", y = "Smoking Rate (%)")
+
+
+gert::git_add(".")
+gert::git_commit("added test script")
+gert::git_push()
+
