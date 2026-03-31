@@ -7,6 +7,8 @@ usethis::create_github_token()
 gitcreds::gitcreds_set()
 usethis::git_sitrep()
 
+#File conflict 
+usethis::git_vaccinate()
 
 usethis::create_from_github(
   repo_spec = "littlewasianboy/ECC3479-",
