@@ -88,6 +88,10 @@ smoking_data$cancer_female <- na.approx(smoking_data$cancer_female, na.rm = FALS
 smoking_data$illegal_market <- NULL
 smoking_data <- smoking_data[smoking_data$year != 2023, ]
 
+#Removing duplicate rows
+
+smoking_data <- smoking_data[!duplicated(smoking_data$year), ]
+
 #Final sanity check 
 View(smoking_data)
 head(smoking_data)

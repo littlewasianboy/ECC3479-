@@ -119,7 +119,11 @@ model instability lets drop these both completely.
 smoking_data$illegal_market <- NULL
 smoking_data <- smoking_data[smoking_data$year != 2023, ]
 
-Great! lets do a sanity check: 
+Hold on - there are duplicate rows from the binding process! Lets fix:
+
+smoking_data <- smoking_data[!duplicated(smoking_data$year), ]
+
+Great! lets do a final sanity check: 
 
 View(smoking_data)
 head(smoking_data)
