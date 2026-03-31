@@ -32,6 +32,7 @@ library(zoo)
 install.packages("writexl")
 library(writexl)
 
+#This code will clear environment. Wont need to use this, do not RUN. 
 rm(list = ls(all.names = TRUE))
 
 
@@ -76,7 +77,7 @@ second_last_female <- smoking_data[smoking_data$year == 2020, "cancer_female"]
 annual_change_female <- last_value_female - second_last_female
 smoking_data[smoking_data$year == 2022, "cancer_female"] <- last_value_female + annual_change_female
 
-#Linear interpolation - 
+#Linear interpolation -  
 
 smoking_data$smoking_total <- na.approx(smoking_data$smoking_total, na.rm = FALSE)
 smoking_data$smoking_male <- na.approx(smoking_data$smoking_male, na.rm = FALSE)
