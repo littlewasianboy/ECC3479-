@@ -96,7 +96,7 @@ str(smoking_data)
 
 
 gert::git_add(".")
-gert::git_commit("Data cleaned")
+gert::git_commit("Data cleaned and README completed")
 gert::git_push()
 
 
