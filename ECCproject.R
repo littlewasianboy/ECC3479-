@@ -27,10 +27,17 @@ usethis::use_readme_md()
 
 gert::git_pull()
 
+
+install.packages("readxl")
+install.packages("zoo")
+install.packages("writexl")
+install.packages("gert")
+
+
 library(readxl)
 library(zoo)
-install.packages("writexl")
 library(writexl)
+library(gert)
 
 #This code will clear environment. Wont need to use this, do not RUN. 
 rm(list = ls(all.names = TRUE))

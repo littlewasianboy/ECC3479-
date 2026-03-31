@@ -6,44 +6,35 @@
 
 Step 1: Clone the repository onto your machine. 
 
-You will need to install the following packages:
+In your blank R console, use the following code:
 
 install.packages("usethis")
-install.packages("readxl")
-install.packages("zoo")
-install.packages("writexl")
-install.packages("gert")
-
-Now add them to your library: 
-
 library(usethis)
-library(readxl)
-library(zoo)
-library(writexl)
-library(gert)
 
-
-
-Use the following code to clone the repo:
+Now use the following code to clone the repo:
 
 usethis::create_from_github(
-  repo_spec = "littlewasianboy/ECC3479-",
-  destdir = "~/Your desired file path location",
+  repo_spec = "littlewasianboy/ECC3479",
+  destdir = "C:/Users/yourname/Desktop",
   fork = FALSE
 )
 
-(Desktop is always a nice place to save it )
+
+(alternatively instead of writing your name you can just use:
+"~/Desktop" after destdir)
 
 
 2. Open the file:
 
+If your machine automatically opens the Rproj, then great. In the files section
+on the right, click on ECCproject.R and it will load. 
+
+IF NOT
+
 Go to your saved file location, find the ECC3479- folder, and double click
-ECC3479.Rproj to open in Rstudio. 
+ECC3479.Rproj to open in Rstudio. In the files sectionon the right, click on 
+ECCproject.R and it will load. 
 
-To access the data, double click on the r file that you will see in the file
-section. You may need to use this code worst case scenario:
-
-gert::git_pull()
 
 If your global environment is full, clear your global environment:
 
@@ -51,13 +42,35 @@ rm(list = ls())
 
 Otherwise DO NOT RUN THIS CODE. 
 
-2. Cleaning the data (follow the code from line 39 down and these instructions)
+2. Cleaning the data 
+
+Run the following from line 31-40: 
+
+install.packages("readxl")
+install.packages("zoo")
+install.packages("writexl")
+install.packages("gert")
+
+
+library(readxl)
+library(zoo)
+library(writexl)
+library(gert)
+
+Now run the code from line 46-99, and view the the clean data. The clean data
+is named smoking_data. 
+
+The rest of this document is my intuition for each line of code and a step by 
+step. Feel free to read if necessary! 
+
+-- 
+
 
 Great! Now lets clean the data. You can follow the code from here and 
 these instructions for my thinking. 
 
 I want to import the semi-cleaned data and turn this into cleaned data. 
-For consistency lets create it as a separate variable. Starting from line 39:
+For consistency lets create it as a separate variable. Starting from line 46:
 
 raw_smoking_data = read_excel("ecc_data_raw.xlsx")
 smoking_data = raw_smoking_data
