@@ -12,7 +12,7 @@ usethis::git_vaccinate()
 
 usethis::create_from_github(
   repo_spec = "littlewasianboy/ECC3479-",
-  destdir = "~/Desktop",  # or wherever you want it saved locally
+  destdir = "~/Desktop",  
   fork = FALSE
 )
 
