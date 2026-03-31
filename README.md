@@ -6,13 +6,22 @@
 
 Step 1: Clone the repository onto your machine. 
 
-You will need to install the following Git packages:
+You will need to install the following packages:
 
 install.packages("usethis")
 install.packages("readxl")
 install.packages("zoo")
 install.packages("writexl")
 install.packages("gert")
+
+Now add them to your library: 
+
+library(usethis)
+library(readxl)
+library(zoo)
+library(writexl)
+library(gert)
+
 
 
 Use the following code to clone the repo:
@@ -31,23 +40,24 @@ usethis::create_from_github(
 Go to your saved file location, find the ECC3479- folder, and double click
 ECC3479.Rproj to open in Rstudio. 
 
-Before accessing the data you need to PULL the latest changes. You should 
-have the latest version but do this just in case. 
+To access the data, double click on the r file that you will see in the file
+section. You may need to use this code worst case scenario:
 
 gert::git_pull()
 
-Everything is already loaded, to restart the process, clear your global 
-environment:
+If your global environment is full, clear your global environment:
 
 rm(list = ls())
 
-2. Cleaning the data
+Otherwise DO NOT RUN THIS CODE. 
+
+2. Cleaning the data (follow the code from line 39 down and these instructions)
 
 Great! Now lets clean the data. You can follow the code from here and 
 these instructions for my thinking. 
 
 I want to import the semi-cleaned data and turn this into cleaned data. 
-For consistency lets create it as a separate variable:
+For consistency lets create it as a separate variable. Starting from line 39:
 
 raw_smoking_data = read_excel("ecc_data_raw.xlsx")
 smoking_data = raw_smoking_data
