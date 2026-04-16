@@ -114,6 +114,25 @@ gert::git_commit("Data cleaned and README completed")
 gert::git_push()
 
 
+# EDA 
+
+# Summary stats for every variable
+
+install.packages("moments")
+library(moments)
+summary(smoking_data)
 
 
-#
+plot(smoking_data$smoking_total, main = "Total Smoking Rate")
+
+plot(smoking_data$excise_tax, main = "ET")
+# Data is broken up, exponential shape, this makes sense. 
+skewness(smoking_data$excise_tax)
+boxplot(smoking_data$excise_tax)
+#From skewness and box plot we can see rightward skewness
+
+
+
+
+
+
