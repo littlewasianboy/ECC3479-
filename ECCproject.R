@@ -102,6 +102,10 @@ smoking_data <- smoking_data[smoking_data$year != 2023, ]
 
 smoking_data <- smoking_data[!duplicated(smoking_data$year), ]
 
+#Rounding 
+cols_to_round <- setdiff(names(smoking_data), "year")
+smoking_data[, cols_to_round] <- as.data.frame(lapply(smoking_data[, cols_to_round], round, 3))
+
 #Final sanity check 
 View(smoking_data)
 head(smoking_data)
@@ -122,14 +126,46 @@ install.packages("moments")
 library(moments)
 summary(smoking_data)
 
+sapply(smoking_data[, cols_to_round], sd, na.rm = TRUE)
 
-plot(smoking_data$smoking_total, main = "Total Smoking Rate")
 
-plot(smoking_data$excise_tax, main = "ET")
-# Data is broken up, exponential shape, this makes sense. 
-skewness(smoking_data$excise_tax)
-boxplot(smoking_data$excise_tax)
-#From skewness and box plot we can see rightward skewness
+#Histograms - Skewness 
+par(mfrow = c(2, 3))  # arrange plots in a grid
+hist(smoking_data$smoking_total, main = "Smoking Total", xlab = "")
+hist(smoking_data$smoking_male, main = "Smoking Male", xlab = "")
+hist(smoking_data$smoking_female, main = "Smoking Female", xlab = "")
+hist(smoking_data$excise_tax, main = "Excise Tax", xlab = "")
+hist(smoking_data$cancer_total, main = "Cancer Total", xlab = "")
+hist(smoking_data$cancer_male, main = "Cancer Male", xlab = "")
+par(mfrow = c(1, 1))  # reset
+
+#Boxplots - Outliers 
+par(mfrow = c(2, 3))
+boxplot(smoking_data$smoking_total, main = "Smoking Total")
+boxplot(smoking_data$smoking_male, main = "Smoking Male")
+boxplot(smoking_data$smoking_female, main = "Smoking Female")
+boxplot(smoking_data$excise_tax, main = "Excise Tax")
+boxplot(smoking_data$cancer_total, main = "Cancer Total")
+boxplot(smoking_data$cancer_male, main = "Cancer Male")
+par(mfrow = c(1, 1))
+
+#time series comparison 
+par(mfrow = c(2, 3))
+plot(smoking_data$year, smoking_data$smoking_total, type = "b", main = "Smoking Total", xlab = "Year", ylab = "")
+plot(smoking_data$year, smoking_data$smoking_male, type = "b", main = "Smoking Male", xlab = "Year", ylab = "")
+plot(smoking_data$year, smoking_data$smoking_female, type = "b", main = "Smoking Female", xlab = "Year", ylab = "")
+plot(smoking_data$year, smoking_data$excise_tax, type = "b", main = "Excise Tax", xlab = "Year", ylab = "")
+plot(smoking_data$year, smoking_data$cancer_total, type = "b", main = "Cancer Total", xlab = "Year", ylab = "")
+plot(smoking_data$year, smoking_data$cancer_male, type = "b", main = "Cancer Male", xlab = "Year", ylab = "")
+par(mfrow = c(1, 1))
+
+#Correlation between variables 
+
+
+
+
+
+
 
 
 
