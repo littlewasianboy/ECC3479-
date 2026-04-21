@@ -59,6 +59,78 @@ cat("Market return rows:", nrow(market_lr), "\n") #Rows are equal
 plot(lr, main = "Log stock returns")
 plot(market_lr, main = "Log ASX return")
 
+summary(daily_P)
+summary(axjo_D_P)
+summary(lr)
+summary(market_lr)
+
+# Plotted returns
+par(mfrow = c(2, 2))
+
+plot(lr[, "cba"],
+     main = "CBA Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#2c7bb6")
+
+plot(lr[, "bhp"],
+     main = "BHP Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#d7191c")
+
+plot(lr[, "wes"],
+     main = "WES Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#1a9641")
+
+plot(lr[, "csl"],
+     main = "CSL Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#fdae61")
+
+par(mfrow = c(1, 1))
+
+
+#Market Returns 
+plot(market_lr,
+     main = "ASX 200 Daily Log Returns (2014–2024)",
+     xlab = "Date",
+     ylab = "Log Return",
+     col  = "#636363")
+
+## Everything looks normal, volatility around 2020 period. Some have more than others. 
+
+#JB test for normality 
+
+install.packages("tseries")
+library(tseries)
+for (i in seq_along(colnames(lr))) {
+  ret  <- as.numeric(lr[, i])
+  test <- jarque.bera.test(ret)
+  cat(colnames(lr)[i], 
+      "— JB Statistic:", round(test$statistic, 2),
+      "| p-value:", format(test$p.value, scientific = TRUE, digits = 3), "\n")
+}
+
+# JB value is perfect - it follows normal distribution. Can use regression. 
+
+# ACF - Under EMF there should be white noise 
+par(mfrow = c(2, 2))
+
+for (i in seq_along(stocks)) {
+  acf(as.numeric(lr[, stocks[i]]),
+      main    = paste(stock_names[i], "— ACF of Log Returns"),
+      xlab    = "Lag (Days)",
+      ylab    = "Autocorrelation",
+      lag.max = 20,
+      col     = colours[i])
+}
+
+par(mfrow = c(1, 1))
+
+
+
+
+# Sharpe Ratio - what does this tell us?
 
 
 
