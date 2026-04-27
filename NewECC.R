@@ -116,9 +116,9 @@ for (i in seq_along(colnames(lr))) {
 # ACF - Under EMF there should be white noise 
 par(mfrow = c(2, 2))
 
-for (i in seq_along(stocks)) {
-  acf(as.numeric(lr[, stocks[i]]),
-      main    = paste(stock_names[i], "— ACF of Log Returns"),
+for (i in seq_along(colnames(lr))) {
+  acf(as.numeric(lr[, i]),
+      main    = paste(colnames(lr)[i], "— ACF of Log Returns"),
       xlab    = "Lag (Days)",
       ylab    = "Autocorrelation",
       lag.max = 20,
@@ -127,7 +127,21 @@ for (i in seq_along(stocks)) {
 
 par(mfrow = c(1, 1))
 
+# Scatter plots of each stock vs ASX 200
+par(mfrow = c(2, 2))
 
+for (i in seq_along(colnames(lr))) {
+  plot(as.numeric(market_lr), as.numeric(lr[, i]),
+       main = paste(colnames(lr)[i], "vs ASX 200"),
+       xlab = "ASX 200 Log Return",
+       ylab = paste(colnames(lr)[i], "Log Return"),
+       col  = adjustcolor("steelblue", alpha.f = 0.3),
+       pch  = 16, cex = 0.5)
+  abline(lm(as.numeric(lr[, i]) ~ as.numeric(market_lr)),
+         col = "red", lwd = 2)
+}
+
+par(mfrow = c(1, 1))
 
 
 # Sharpe Ratio - what does this tell us?
