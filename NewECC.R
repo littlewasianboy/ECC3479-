@@ -4,6 +4,8 @@ rm(list = ls(all.names = TRUE)) # Clear global environment
 #Packages
 install.packages("quantmod")
 install.packages("PerformanceAnalytics")
+install.packages("fredr")
+library(fredr)
 library(PerformanceAnalytics)
 library(quantmod)
 
@@ -47,6 +49,86 @@ tail(market_lr)
 common_dates   <- intersect(index(lr), index(market_lr))
 lr             <- lr[common_dates]
 market_lr      <- market_lr[common_dates]
+
+# Momentum and overreaction
+reg_data <- data.frame(
+  date      = index(lr),
+  coredata(lr),
+  market_lr = coredata(market_lr)
+)
+
+# Clean column names
+colnames(reg_data) <- c("date", "cba", "bhp", "wes", "csl", "market_lr")
+
+# Check it looks right
+head(reg_data)
+nrow(reg_data)
+
+
+
+
+
+# Create momentum and overreaction variables for all stocks
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  ret  <- reg_data[[name]]
+  sd_r <- sd(ret, na.rm = TRUE)
+  
+  # Momentum: past 20-day cumulative return lagged 1 day
+  reg_data[[paste0(name, "_momentum")]] <- lag(
+    rollsum(ret, k = 20, fill = NA, align = "right"), 1
+  )
+  
+  # Overreaction: flags returns beyond ±2 standard deviations
+  reg_data[[paste0(name, "_large_pos")]] <- lag(
+    ifelse(ret >  2 * sd_r, 1, 0), 1
+  )
+  reg_data[[paste0(name, "_large_neg")]] <- lag(
+    ifelse(ret < -2 * sd_r, 1, 0), 1
+  )
+}
+
+# Summary of momentum variable
+cat("=== MOMENTUM VARIABLE SUMMARY ===\n")
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  mom  <- reg_data[[paste0(name, "_momentum")]]
+  cat(name, "— Mean:", round(mean(mom, na.rm = TRUE), 6),
+      "| SD:", round(sd(mom, na.rm = TRUE), 6), "\n")
+}
+
+# How many overreaction days per stock?
+cat("\n=== OVERREACTION DAYS ===\n")
+for (i in seq_along(colnames(lr))) {
+  name  <- colnames(lr)[i]
+  n_pos <- sum(reg_data[[paste0(name, "_large_pos")]], na.rm = TRUE)
+  n_neg <- sum(reg_data[[paste0(name, "_large_neg")]], na.rm = TRUE)
+  cat(name, "— Large positive days:", n_pos,
+      "| Large negative days:", n_neg, "\n")
+}
+
+par(mfrow = c(2, 2))
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  plot(reg_data$date, reg_data[[paste0(name, "_momentum")]],
+       type = "l",
+       main = paste(name, "— 20-Day Momentum"),
+       xlab = "Date",
+       ylab = "Cumulative 20-Day Return",
+       col  = "#2c7bb6")
+  abline(h = 0, col = "red", lty = 2)
+}
+par(mfrow = c(1, 1))
+
+# Does momentum correlate with next day returns? (first-order effect)
+cat("\n=== MOMENTUM-RETURN CORRELATION ===\n")
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  cor_val <- cor(reg_data[[name]],
+                 reg_data[[paste0(name, "_momentum")]],
+                 use = "complete.obs")
+  cat(name, "— Correlation:", round(cor_val, 4), "\n")
+}
 
 #Final check before EDA 
 cat("Stock return rows:", nrow(lr), "\n")
