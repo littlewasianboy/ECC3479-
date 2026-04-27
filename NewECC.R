@@ -114,16 +114,37 @@ for (i in seq_along(colnames(lr))) {
 # JB value is perfect - it follows normal distribution. Can use regression. 
 
 # ACF - Under EMF there should be white noise 
-par(mfrow = c(2, 2))
+# CBA
+acf(as.numeric(lr[, "cba"]),
+    main    = "CBA — ACF of Log Returns",
+    xlab    = "Lag (Days)",
+    ylab    = "Autocorrelation",
+    lag.max = 20,
+    col     = "#2c7bb6")
 
-for (i in seq_along(colnames(lr))) {
-  acf(as.numeric(lr[, i]),
-      main    = paste(colnames(lr)[i], "— ACF of Log Returns"),
-      xlab    = "Lag (Days)",
-      ylab    = "Autocorrelation",
-      lag.max = 20,
-      col     = colours[i])
-}
+# BHP
+acf(as.numeric(lr[, "bhp"]),
+    main    = "BHP — ACF of Log Returns",
+    xlab    = "Lag (Days)",
+    ylab    = "Autocorrelation",
+    lag.max = 20,
+    col     = "#d7191c")
+
+# WES
+acf(as.numeric(lr[, "wes"]),
+    main    = "WES — ACF of Log Returns",
+    xlab    = "Lag (Days)",
+    ylab    = "Autocorrelation",
+    lag.max = 20,
+    col     = "#1a9641")
+
+# CSL
+acf(as.numeric(lr[, "csl"]),
+    main    = "CSL — ACF of Log Returns",
+    xlab    = "Lag (Days)",
+    ylab    = "Autocorrelation",
+    lag.max = 20,
+    col     = "#fdae61")
 
 par(mfrow = c(1, 1))
 
@@ -144,7 +165,33 @@ for (i in seq_along(colnames(lr))) {
 par(mfrow = c(1, 1))
 
 
-# Sharpe Ratio - what does this tell us?
+#Correlation matrix 
+library(corrplot)
+cor_matrix <- cor(lr)
+
+# Print the matrix
+cat("=== CORRELATION MATRIX ===\n")
+print(round(cor_matrix, 3))
+
+# Visual heatmap
+corrplot(cor_matrix,
+         method      = "color",
+         type        = "upper",
+         tl.col      = "black",
+         addCoef.col = "black",
+         number.cex  = 0.9,
+         title       = "ASX Stock Return Correlations (2014–2024)",
+         mar         = c(0, 0, 2, 0))
+
+
+
+# ADF on log returns — expect to reject unit root (p < 0.05)
+for (i in seq_along(colnames(lr))) {
+  test <- adf.test(as.numeric(lr[, i]))
+  cat(colnames(lr)[i],
+      "— ADF p-value:", round(test$p.value, 4), "\n")
+  print(test)
+}
 
 
 
