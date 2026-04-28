@@ -1,0 +1,287 @@
+---
+title: "Exploratory Data Analysis"
+output:
+  html_document:
+    theme: cosmo
+author: "Matthew Versace, Sharna McClure & Ciara Stevens-Baytopp"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+#Packages
+library(PerformanceAnalytics)
+library(quantmod)
+library(moments)
+
+#Stocks 
+options("getSymbols.warning4.0"=FALSE)
+getSymbols(Symbols = c("CBA.AX", "BHP.AX", "WES.AX", "CSL.AX" ), from="2014-01-01", to="2024-12-31",
+           auto.assign=TRUE, warnings=FALSE)
+
+# Market benchmark - ASX 200
+getSymbols(Symbols = "^AXJO", from = "2014-01-01", to = "2024-12-31",
+           auto.assign = TRUE, warnings = FALSE)
+
+
+#Daily adjusted - for time series and EMH assumptions
+cba_D_P = to.daily(CBA.AX$CBA.AX.Adjusted, OHLC=FALSE) 
+bhp_D_P = to.daily(BHP.AX$BHP.AX.Adjusted, OHLC=FALSE) 
+wes_D_P = to.daily(WES.AX$WES.AX.Adjusted, OHLC=FALSE) 
+csl_D_P = to.daily(CSL.AX$CSL.AX.Adjusted, OHLC=FALSE) 
+axjo_D_P <- to.daily(AXJO$AXJO.Adjusted, OHLC = FALSE)
+colnames(axjo_D_P) <- "ASX200"
+
+#Merge daily price series
+daily_P = merge(cba_D_P,bhp_D_P,wes_D_P,csl_D_P)
+colnames(daily_P) <- c("cba","bhp","wes","csl")
+head(daily_P)
+tail(daily_P)
+
+
+#Log returns
+lr = na.omit(diff(log(daily_P)))
+colnames(lr) <- c("cba","bhp","wes","csl")
+head(lr)  
+tail(lr)
+
+market_lr <- na.omit(diff(log(axjo_D_P)))
+colnames(market_lr) <- "ASX200"
+head(market_lr)
+tail(market_lr)
+
+#ASX coded to match dates with stock data 
+common_dates   <- intersect(index(lr), index(market_lr))
+lr             <- lr[common_dates]
+market_lr      <- market_lr[common_dates]
+
+```
+
+## Introduction
+
+This following exploratory data analysis (EDA) will examine log returns from 2014-2024, for four ASX-listed stocks: CBA, BHP, CSL, and WES. Data was sourced from Yahoo Finance using the R "quantmod" package and uses daily adjusted closing prices for sufficient observations and comprehensive analysis.
+
+## 1. Stock analysis
+
+The series is merged to observe the log return movements all together. We expect the returns to be close to zero under standard efficient market hypothesis (EMH) assumptions and verify this with the following code:
+
+```{r summary stats, echo=TRUE}
+summary(lr)
+summary(market_lr)
+```
+
+Observing the mean values of all stocks, this is consistent with theoretical expectations of EMH. Numbers greater than zero suggest that returns can be predictable.
+
+We conduct a visual inspection by plotting the log returns to analyse their volatility in the market.
+
+```{r log return plots, echo=FALSE, fig.width=15, fig.height=8}
+par(mfrow = c(2, 2))
+
+plot(lr[, "cba"],
+     main = "CBA Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#2c7bb6")
+
+plot(lr[, "bhp"],
+     main = "BHP Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#d7191c")
+
+plot(lr[, "wes"],
+     main = "WES Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#1a9641")
+
+plot(lr[, "csl"],
+     main = "CSL Daily Log Returns",
+     xlab = "Date", ylab = "Log Return",
+     col  = "#fdae61")
+
+par(mfrow = c(1, 1))
+
+```
+
+All stocks experience a cluster of volatility during the COVID-19 pandemic and the recovery period shortly after (RBA hiking cycle). The charts each reflect the differences in all industries, for example, pharmaceuticals and mining appear to exhibit more volatility at the beginning of the series compared to the financial and retail industry at this same period of time.
+
+Similarly we examine the benchmark index (ASX 200)
+
+```{r ASX200 plot, echo=FALSE}
+plot(market_lr,
+     main = "ASX 200 Daily Log Returns (2014–2024)",
+     xlab = "Date",
+     ylab = "Log Return",
+     col  = "#636363")
+```
+
+We observe a similar pattern to the four stocks, all of which appear to track the index with some deviations due to industry specific conditions.
+
+## 2. Data Characteristics 
+
+We employ the Jarque-Bera (JB) test to observe if the log returns follow a normal distribution, using hypothesis testing with two degrees of freedom. It also helps to measure for skewness of the distributions, and kurtosis (the likelihood of extreme events from the center of the distribution).
+
+The decision rule is:
+
+$$H_0: \text{The sample data are normally distributed} \ (S = 0, \ K = 3)$$ $$H_1: \text{The sample data are not normally distributed} \ (S \neq 0, \ K \neq 3)$$
+
+Where S = Skewness and K = Kurtosis.
+
+```{r JB and ADF, echo=FALSE}
+library(tseries)
+for (i in seq_along(colnames(lr))) {
+  ret  <- as.numeric(lr[, i])
+  test <- jarque.bera.test(ret)
+  cat(colnames(lr)[i], 
+      "— JB Statistic:", round(test$statistic, 2),
+      "| p-value:", format(test$p.value, scientific = TRUE, digits = 3), "\n")
+}
+
+```
+
+A p-value of 0.001 for all stocks illustrates there is sufficient evidence to reject the null hypothesis at the 1% significance level. This strongly suggests the data does not follow a normal distribution. A result of non-normality can impact the validity of statistical inferences and will need to be accounted for in a robustness analysis. Additionally, the JB statistic for each of the stocks is displayed above. CBA is the largest (furthest from normality) and this could reflect CBA's sensitivity to both domestic and global economic conditions. In contrast, BHP appears to be the smallest.
+
+```{r kurtosis and skewness, echo=FALSE}
+sk_kurt <- data.frame(
+  Stock    = colnames(lr),
+  Skewness = NA,
+  Kurtosis = NA
+)
+
+for (i in seq_along(colnames(lr))) {
+  ret <- as.numeric(lr[, i])
+  sk_kurt$Skewness[i] <- round(skewness(ret), 4)
+  sk_kurt$Kurtosis[i] <- round(kurtosis(ret), 4)
+}
+
+print(sk_kurt)
+
+```
+
+Following the previous results, all stocks are negatively skewed and kurtosis is \> 0, suggesting the tails of the distribution are thick. This is consistent with the previous evidence of non-normality.
+
+We now test for stationarity of the log returns. This a key assumption that must be satisfied for the reliability of standard errors in the next regression models. To test for stationarity we use the Augmented Dickey-Fuller (ADF) test which determines if properties such as mean or variance change over time.
+
+The decision rule is:
+
+$$\text{Reject } H_0 \text{ if } p\text{-value} < 0.05$$
+
+```{r ADF TEST, echo=FALSE}
+for (i in seq_along(colnames(lr))) {
+  test <- adf.test(as.numeric(lr[, i]))
+  cat(colnames(lr)[i],
+      "— ADF p-value:", round(test$p.value, 4), "\n")
+  print(test)
+}
+```
+
+The results of the ADF test show a p-value of 0.01 for all log returns of the stocks. There is sufficient evidence to reject the null hypothesis at the 5% significance level, concluding that the data is stationary.
+
+## 3. Multivariable Analysis 
+
+We begin examining how variables move together with a correlation plot.
+
+```{r correlation plot, echo=FALSE}
+library(corrplot)
+cor_matrix <- cor(lr)
+
+# Print the matrix
+cat("CORRELATION MATRIX\n")
+print(round(cor_matrix, 3))
+
+# Visual heatmap
+corrplot(cor_matrix,
+         method      = "color",
+         type        = "upper",
+         tl.col      = "black",
+         addCoef.col = "black",
+         number.cex  = 0.9,
+         title       = "ASX Stock Return Correlations (2014–2024)",
+         mar         = c(0, 0, 2, 0))
+```
+
+CBA notably exhibits a positive correlation with WES at 0.54 which may raise some concern for multicollinearity. In contrast, most other stocks show a weaker positive correlation which should not be of concern.
+
+```{r stocks vs ASX200, echo=FALSE}
+par(mfrow = c(2, 2))
+
+for (i in seq_along(colnames(lr))) {
+  plot(as.numeric(market_lr), as.numeric(lr[, i]),
+       main = paste(colnames(lr)[i], "vs ASX 200"),
+       xlab = "ASX 200 Log Return",
+       ylab = paste(colnames(lr)[i], "Log Return"),
+       col  = adjustcolor("steelblue", alpha.f = 0.3),
+       pch  = 16, cex = 0.5)
+  abline(lm(as.numeric(lr[, i]) ~ as.numeric(market_lr)),
+         col = "red", lwd = 2)
+}
+
+par(mfrow = c(1, 1))
+```
+
+The above plots demonstrate returns plotted against the ASX 200. Most of the log returns are clustered with some extremes as identified before, and there is a strong positive relationship with the ASX index. This satisfies the assumption of stocks reflecting the prescence of marekt (systematic) risk, a key assumption of the regression models that will be used in formal analysis.
+
+## 4. Behavioural Variable Analysis 
+
+```{r behavioural variables, echo=FALSE}
+reg_data <- data.frame(
+  date      = index(lr),
+  coredata(lr),
+  market_lr = coredata(market_lr)
+)
+
+# Clean column names
+colnames(reg_data) <- c("date", "cba", "bhp", "wes", "csl", "market_lr")
+
+# Check it looks right
+head(reg_data)
+nrow(reg_data)
+
+
+
+
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  ret  <- reg_data[[name]]
+  sd_r <- sd(ret, na.rm = TRUE)
+  
+  # Momentum: past 20-day cumulative return lagged 1 day
+  reg_data[[paste0(name, "_momentum")]] <- lag(
+    rollsum(ret, k = 20, fill = NA, align = "right"), 1
+  )
+  
+  # Overreaction: flags returns beyond ±2 standard deviations
+  reg_data[[paste0(name, "_large_pos")]] <- lag(
+    ifelse(ret >  2 * sd_r, 1, 0), 1
+  )
+  reg_data[[paste0(name, "_large_neg")]] <- lag(
+    ifelse(ret < -2 * sd_r, 1, 0), 1
+  )
+}
+```
+
+Also factored into our regression models will be behavioural characteristics of momentum (Jegadeesh & Titman 1993) and overreaction (De Bondt & Thaler, 1985) observed in behavioural finance. We construct the momentum variable by taking the 20-day cumulative log return lagged by one trading day, and examined days where returns exceed two standard deviations from the mean in the overreaction variable.
+
+```{r - momentum and overreaction, echo=FALSE}
+cat("MOMENTUM VARIABLE SUMMARY\n")
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  mom  <- reg_data[[paste0(name, "_momentum")]]
+  cat(name, "— Mean:", round(mean(mom, na.rm = TRUE), 6),
+      "| SD:", round(sd(mom, na.rm = TRUE), 6), "\n")
+}
+
+```
+
+In the momentum table summary, the results show positive trending returns over a 20-day period for all stocks. CSL has the highest mean (strongest momentum) which reflects good performance over this period. On the other hand, BHP has the largest variance in its returns, this is consistent with volatility of commodity prices. Further analysis will confirm whether investors are over or under-reacting to information.
+
+```{r overreaction, echo=FALSE}
+cat("OVERREACTION DAYS\n")
+for (i in seq_along(colnames(lr))) {
+  name  <- colnames(lr)[i]
+  n_pos <- sum(reg_data[[paste0(name, "_large_pos")]], na.rm = TRUE)
+  n_neg <- sum(reg_data[[paste0(name, "_large_neg")]], na.rm = TRUE)
+  cat(name, "— Large positive days:", n_pos,
+      "| Large negative days:", n_neg, "\n")
+}
+```
+
+The table above reports the extreme return days that will be used to detect possible overreaction in the regression analysis. There are more extreme negative days than extreme positive days of variation, and this is consistent with the distribition property of negative skewness found in the JB test. Following the momentum table, BHP has the most days with variance and WES has a large gap between the extreme positive and negative days.
