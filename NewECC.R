@@ -155,8 +155,38 @@ cat("Cut dates not in reg_data:\n")
 print(rba_cut_dates[!rba_cut_dates %in% reg_data$date])
 # Emergency RBA meeting date 
 
+# Risk free rate and excess returns 
+# Download 90-day bank bill rate from RBA
+rf_data <- read_rba(series_id = "FIRMMBAB90")
 
+# Cleaning rf data 
+rf_data <- rf_data %>%
+  select(date, value) %>%
+  rename(rf_annual = value) %>%
+  mutate(
+    date     = as.Date(date),
+    # Convert annual rate to daily
+    rf_daily = rf_annual / 100 / 252
+  ) %>%
+  filter(date >= as.Date("2014-01-01") &
+           date <= as.Date("2024-12-31"))
 
+head(rf_data)
+
+reg_data <- reg_data %>%
+  left_join(rf_data %>% select(date, rf_daily),
+            by = "date")
+
+# Forward fill any missing days
+reg_data <- reg_data %>%
+  fill(rf_daily, .direction = "down")
+
+# calculate excess returns with Rf
+reg_data$cba_excess    <- reg_data$cba    - reg_data$rf_daily
+reg_data$bhp_excess    <- reg_data$bhp    - reg_data$rf_daily
+reg_data$wes_excess    <- reg_data$wes    - reg_data$rf_daily
+reg_data$csl_excess    <- reg_data$csl    - reg_data$rf_daily
+reg_data$market_excess <- reg_data$market_lr - reg_data$rf_daily
 
 
 #Final check before EDA 
@@ -354,12 +384,16 @@ for (i in seq_along(colnames(lr))) {
 }
 
 
-## Regression model ##
+## Regression models ##
 
-
-
+#CAPM 
+capm_cba <- lm(cba_excess ~ market_excess + hike + cut +
+                      hike_post1 + cut_post1 +
+                      cba_momentum +
+                      cba_large_pos + cba_large_neg,
+                    data = reg_data)
+summary(capm_cba)
 
 gert::git_add(".")
 gert::git_commit("Beginning EDA")
 gert::git_push()
->>>>>>> 2187ef51fac3766ce945b6a13aa245611d30b655
