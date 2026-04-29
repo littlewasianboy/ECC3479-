@@ -1,10 +1,12 @@
-<<<<<<< HEAD
 rm(list = ls(all.names = TRUE)) # Clear global environment 
-
 
 #Packages
 install.packages("quantmod")
 install.packages("PerformanceAnalytics")
+install.packages("readrba")
+install.packages("tidyverse")
+library(tidyverse)
+library(readrba)
 library(PerformanceAnalytics)
 library(quantmod)
 
@@ -31,149 +33,6 @@ daily_P = merge(cba_D_P,bhp_D_P,wes_D_P,csl_D_P)
 colnames(daily_P) <- c("cba","bhp","wes","csl")
 head(daily_P)
 tail(daily_P)
-
-
-#Log returns
-lr = na.omit(diff(log(daily_P)))
-colnames(lr) <- c("cba","bhp","wes","csl")
-head(lr)  
-tail(lr)
-
-market_lr <- na.omit(diff(log(axjo_D_P)))
-colnames(market_lr) <- "ASX200"
-head(market_lr)
-tail(market_lr)
-
-#ASX coded to match dates with stock data 
-common_dates   <- intersect(index(lr), index(market_lr))
-lr             <- lr[common_dates]
-market_lr      <- market_lr[common_dates]
-
-#Final check before EDA 
-cat("Stock return rows:", nrow(lr), "\n")
-cat("Market return rows:", nrow(market_lr), "\n") #Rows are equal
-
-
-
-
-#EDA 
-plot(lr, main = "Log stock returns")
-plot(market_lr, main = "Log ASX return")
-
-summary(daily_P)
-summary(axjo_D_P)
-summary(lr)
-summary(market_lr)
-
-# Plotted returns
-par(mfrow = c(2, 2))
-
-plot(lr[, "cba"],
-     main = "CBA Daily Log Returns",
-     xlab = "Date", ylab = "Log Return",
-     col  = "#2c7bb6")
-
-plot(lr[, "bhp"],
-     main = "BHP Daily Log Returns",
-     xlab = "Date", ylab = "Log Return",
-     col  = "#d7191c")
-
-plot(lr[, "wes"],
-     main = "WES Daily Log Returns",
-     xlab = "Date", ylab = "Log Return",
-     col  = "#1a9641")
-
-plot(lr[, "csl"],
-     main = "CSL Daily Log Returns",
-     xlab = "Date", ylab = "Log Return",
-     col  = "#fdae61")
-
-par(mfrow = c(1, 1))
-
-
-#Market Returns 
-plot(market_lr,
-     main = "ASX 200 Daily Log Returns (2014–2024)",
-     xlab = "Date",
-     ylab = "Log Return",
-     col  = "#636363")
-
-## Everything looks normal, volatility around 2020 period. Some have more than others. 
-
-#JB test for normality 
-
-install.packages("tseries")
-library(tseries)
-for (i in seq_along(colnames(lr))) {
-  ret  <- as.numeric(lr[, i])
-  test <- jarque.bera.test(ret)
-  cat(colnames(lr)[i], 
-      "— JB Statistic:", round(test$statistic, 2),
-      "| p-value:", format(test$p.value, scientific = TRUE, digits = 3), "\n")
-}
-
-# JB value is perfect - it follows normal distribution. Can use regression. 
-
-# ACF - Under EMF there should be white noise 
-par(mfrow = c(2, 2))
-
-for (i in seq_along(stocks)) {
-  acf(as.numeric(lr[, stocks[i]]),
-      main    = paste(stock_names[i], "— ACF of Log Returns"),
-      xlab    = "Lag (Days)",
-      ylab    = "Autocorrelation",
-      lag.max = 20,
-      col     = colours[i])
-}
-
-par(mfrow = c(1, 1))
-
-
-
-
-# Sharpe Ratio - what does this tell us?
-
-
-
-gert::git_add(".")
-gert::git_commit("Beginning EDA")
-gert::git_push()
-=======
-rm(list = ls(all.names = TRUE)) # Clear global environment 
-
-
-#Packages
-install.packages("quantmod")
-install.packages("PerformanceAnalytics")
-install.packages("fredr")
-library(fredr)
-library(PerformanceAnalytics)
-library(quantmod)
-
-#Stocks 
-options("getSymbols.warning4.0"=FALSE)
-getSymbols(Symbols = c("CBA.AX", "BHP.AX", "WES.AX", "CSL.AX" ), from="2014-01-01", to="2024-12-31",
-           auto.assign=TRUE, warnings=FALSE)
-
-# Market benchmark - ASX 200
-getSymbols(Symbols = "^AXJO", from = "2014-01-01", to = "2024-12-31",
-           auto.assign = TRUE, warnings = FALSE)
-
-
-#Daily adjusted - for time series and EMH assumptions
-cba_D_P = to.daily(CBA.AX$CBA.AX.Adjusted, OHLC=FALSE) 
-bhp_D_P = to.daily(BHP.AX$BHP.AX.Adjusted, OHLC=FALSE) 
-wes_D_P = to.daily(WES.AX$WES.AX.Adjusted, OHLC=FALSE) 
-csl_D_P = to.daily(CSL.AX$CSL.AX.Adjusted, OHLC=FALSE) 
-axjo_D_P <- to.daily(AXJO$AXJO.Adjusted, OHLC = FALSE)
-colnames(axjo_D_P) <- "ASX200"
-
-#Merge daily price series
-daily_P = merge(cba_D_P,bhp_D_P,wes_D_P,csl_D_P)
-colnames(daily_P) <- c("cba","bhp","wes","csl")
-head(daily_P)
-tail(daily_P)
-
 
 #Log returns
 lr = na.omit(diff(log(daily_P)))
@@ -205,10 +64,6 @@ colnames(reg_data) <- c("date", "cba", "bhp", "wes", "csl", "market_lr")
 head(reg_data)
 nrow(reg_data)
 
-
-
-
-
 # Create momentum and overreaction variables for all stocks
 for (i in seq_along(colnames(lr))) {
   name <- colnames(lr)[i]
@@ -229,56 +84,87 @@ for (i in seq_along(colnames(lr))) {
   )
 }
 
-# Summary of momentum variable
-cat("=== MOMENTUM VARIABLE SUMMARY ===\n")
-for (i in seq_along(colnames(lr))) {
-  name <- colnames(lr)[i]
-  mom  <- reg_data[[paste0(name, "_momentum")]]
-  cat(name, "— Mean:", round(mean(mom, na.rm = TRUE), 6),
-      "| SD:", round(sd(mom, na.rm = TRUE), 6), "\n")
-}
+# RBA Variable 
+rba_rate <- read_rba(series_id = "FIRMMCRTD")
 
-# How many overreaction days per stock?
-cat("\n=== OVERREACTION DAYS ===\n")
-for (i in seq_along(colnames(lr))) {
-  name  <- colnames(lr)[i]
-  n_pos <- sum(reg_data[[paste0(name, "_large_pos")]], na.rm = TRUE)
-  n_neg <- sum(reg_data[[paste0(name, "_large_neg")]], na.rm = TRUE)
-  cat(name, "— Large positive days:", n_pos,
-      "| Large negative days:", n_neg, "\n")
-}
+# Clean it up
+rba_rate <- rba_rate %>%
+  select(date, value) %>%
+  rename(cash_rate = value) %>%
+  mutate(date = as.Date(date)) %>%
+  filter(date >= as.Date("2014-01-01") &
+           date <= as.Date("2024-12-31"))
 
-par(mfrow = c(2, 2))
-for (i in seq_along(colnames(lr))) {
-  name <- colnames(lr)[i]
-  plot(reg_data$date, reg_data[[paste0(name, "_momentum")]],
-       type = "l",
-       main = paste(name, "— 20-Day Momentum"),
-       xlab = "Date",
-       ylab = "Cumulative 20-Day Return",
-       col  = "#2c7bb6")
-  abline(h = 0, col = "red", lty = 2)
-}
-par(mfrow = c(1, 1))
+head(rba_rate)
+tail(rba_rate)
 
-# Does momentum correlate with next day returns? (first-order effect)
-cat("\n=== MOMENTUM-RETURN CORRELATION ===\n")
-for (i in seq_along(colnames(lr))) {
-  name <- colnames(lr)[i]
-  cor_val <- cor(reg_data[[name]],
-                 reg_data[[paste0(name, "_momentum")]],
-                 use = "complete.obs")
-  cat(name, "— Correlation:", round(cor_val, 4), "\n")
-}
+# Binary 
+rba_rate <- rba_rate %>%
+  arrange(date) %>%
+  mutate(
+    rate_change = cash_rate - lag(cash_rate),           # actual size of change
+    hike        = ifelse(rate_change > 0, 1, 0),        # 1 = rate hike
+    cut         = ifelse(rate_change < 0, 1, 0),        # 1 = rate cut
+    change      = ifelse(rate_change != 0, 1, 0)        # 1 = any change
+  )
+
+# Check counts of hikes 
+cat("Rate hikes:", sum(rba_rate$hike,   na.rm = TRUE), "\n")
+cat("Rate cuts:",  sum(rba_rate$cut,    na.rm = TRUE), "\n")
+cat("No change:",  sum(rba_rate$change == 0, na.rm = TRUE), "\n")
+
+# Sanity check
+cat("Hike dates:\n")
+print(rba_rate$date[rba_rate$hike == 1])
+
+cat("\nCut dates:\n")
+print(rba_rate$date[rba_rate$cut == 1])
+
+#  Merge into reg_data by date
+reg_data <- reg_data %>%
+  left_join(rba_rate %>% 
+              select(date, rate_change, hike, cut, change),
+            by = "date") %>%
+  mutate(
+    rate_change = replace_na(rate_change, 0),
+    hike        = replace_na(hike, 0),
+    cut         = replace_na(cut, 0),
+    change      = replace_na(change, 0)
+  )
+
+# Step 3: Add post announcement days
+reg_data <- reg_data %>%
+  mutate(
+    hike_post1 = lag(hike, 1, default = 0),
+    hike_post2 = lag(hike, 2, default = 0),
+    cut_post1  = lag(cut,  1, default = 0),
+    cut_post2  = lag(cut,  2, default = 0)
+  )
+
+# Step 4: Verify it worked
+cat("\nIn reg_data:\n")
+cat("Hike days:",      sum(reg_data$hike),       "\n")
+cat("Cut days:",       sum(reg_data$cut),        "\n")
+cat("Post hike days:", sum(reg_data$hike_post1), "\n")
+cat("Post cut days:",  sum(reg_data$cut_post1),  "\n")
+
+# Sanity check
+# Find which cut date didn't match a trading day
+rba_cut_dates <- rba_rate$date[rba_rate$cut == 1]
+cat("Cut dates not in reg_data:\n")
+print(rba_cut_dates[!rba_cut_dates %in% reg_data$date])
+# Emergency RBA meeting date 
+
+
+
+
 
 #Final check before EDA 
 cat("Stock return rows:", nrow(lr), "\n")
 cat("Market return rows:", nrow(market_lr), "\n") #Rows are equal
 
 
-
-
-#EDA 
+#### EDA ####
 plot(lr, main = "Log stock returns")
 plot(market_lr, main = "Log ASX return")
 
@@ -312,7 +198,6 @@ plot(lr[, "csl"],
 
 par(mfrow = c(1, 1))
 
-
 #Market Returns 
 plot(market_lr,
      main = "ASX 200 Daily Log Returns (2014–2024)",
@@ -323,7 +208,6 @@ plot(market_lr,
 ## Everything looks normal, volatility around 2020 period. Some have more than others. 
 
 #JB test for normality 
-
 install.packages("tseries")
 library(tseries)
 for (i in seq_along(colnames(lr))) {
@@ -334,7 +218,7 @@ for (i in seq_along(colnames(lr))) {
       "| p-value:", format(test$p.value, scientific = TRUE, digits = 3), "\n")
 }
 
-# JB value is perfect - it follows normal distribution. Can use regression. 
+# JB value is expected
 
 # ACF - Under EMF there should be white noise 
 # CBA
@@ -370,6 +254,7 @@ acf(as.numeric(lr[, "csl"]),
     col     = "#fdae61")
 
 par(mfrow = c(1, 1))
+
 
 # Scatter plots of each stock vs ASX 200
 par(mfrow = c(2, 2))
@@ -415,6 +300,62 @@ for (i in seq_along(colnames(lr))) {
       "— ADF p-value:", round(test$p.value, 4), "\n")
   print(test)
 }
+
+# Summary of momentum variable
+cat("=== MOMENTUM VARIABLE SUMMARY ===\n")
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  mom  <- reg_data[[paste0(name, "_momentum")]]
+  cat(name, "— Mean:", round(mean(mom, na.rm = TRUE), 6),
+      "| SD:", round(sd(mom, na.rm = TRUE), 6), "\n")
+}
+
+# How many overreaction days per stock?
+cat("\n=== OVERREACTION DAYS ===\n")
+for (i in seq_along(colnames(lr))) {
+  name  <- colnames(lr)[i]
+  n_pos <- sum(reg_data[[paste0(name, "_large_pos")]], na.rm = TRUE)
+  n_neg <- sum(reg_data[[paste0(name, "_large_neg")]], na.rm = TRUE)
+  cat(name, "— Large positive days:", n_pos,
+      "| Large negative days:", n_neg, "\n")
+}
+
+# Momentum and overreaction 
+par(mfrow = c(2, 2))
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  plot(reg_data$date, reg_data[[paste0(name, "_momentum")]],
+       type = "l",
+       main = paste(name, "— 20-Day Momentum"),
+       xlab = "Date",
+       ylab = "Cumulative 20-Day Return",
+       col  = "#2c7bb6")
+  abline(h = 0, col = "red", lty = 2)
+}
+par(mfrow = c(1, 1))
+
+# Does momentum correlate with next day returns?
+cat("\n=== MOMENTUM-RETURN CORRELATION ===\n")
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  cor_val <- cor(reg_data[[name]],
+                 reg_data[[paste0(name, "_momentum")]],
+                 use = "complete.obs")
+  cat(name, "— Correlation:", round(cor_val, 4), "\n")
+}
+
+cat("\n=== OVERREACTION DAYS ===\n")
+for (i in seq_along(colnames(lr))) {
+  name  <- colnames(lr)[i]
+  n_pos <- sum(reg_data[[paste0(name, "_large_pos")]], na.rm = TRUE)
+  n_neg <- sum(reg_data[[paste0(name, "_large_neg")]], na.rm = TRUE)
+  cat(name, "— Large positive days:", n_pos,
+      "| Large negative days:", n_neg, "\n")
+}
+
+
+## Regression model ##
+
 
 
 
