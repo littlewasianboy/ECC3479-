@@ -388,11 +388,36 @@ for (i in seq_along(colnames(lr))) {
 
 #CAPM 
 capm_cba <- lm(cba_excess ~ market_excess + hike + cut +
-                      hike_post1 + cut_post1 +
-                      cba_momentum +
-                      cba_large_pos + cba_large_neg,
-                    data = reg_data)
+                 hike_post1 + cut_post1 +
+                 cba_momentum +
+                 cba_large_pos + cba_large_neg,
+               data = reg_data)
 summary(capm_cba)
+
+### BHP ###
+capm_bhp <- lm(bhp_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 bhp_momentum +
+                 bhp_large_pos + bhp_large_neg,
+               data = reg_data)
+summary(capm_bhp)
+
+### WES ###
+capm_wes <- lm(wes_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 wes_momentum +
+                 wes_large_pos + wes_large_neg,
+               data = reg_data)
+summary(capm_wes)
+
+### CSL ###
+
+capm_csl <- lm(csl_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 csl_momentum +
+                 csl_large_pos + csl_large_neg,
+               data = reg_data)
+summary(capm_csl)
 
 gert::git_add(".")
 gert::git_commit("Beginning EDA")
