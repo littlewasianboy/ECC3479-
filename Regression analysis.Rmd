@@ -1,0 +1,420 @@
+---
+title: "Regression analysis"
+output: html_document
+date: "2026-05-03"
+author: "Matthew Versace, Sharna McClure & Ciara Stevens-Baytopp"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readrba)
+library(PerformanceAnalytics)
+library(quantmod)
+library(stargazer)
+library(kableExtra)
+
+#Stocks 
+options("getSymbols.warning4.0"=FALSE)
+getSymbols(Symbols = c("CBA.AX", "BHP.AX", "WES.AX", "CSL.AX" ), from="2014-01-01", to="2024-12-31",
+           auto.assign=TRUE, warnings=FALSE)
+
+# Market benchmark - ASX 200
+getSymbols(Symbols = "^AXJO", from = "2014-01-01", to = "2024-12-31",
+           auto.assign = TRUE, warnings = FALSE)
+
+
+#Daily adjusted - for time series and EMH assumptions
+cba_D_P = to.daily(CBA.AX$CBA.AX.Adjusted, OHLC=FALSE) 
+bhp_D_P = to.daily(BHP.AX$BHP.AX.Adjusted, OHLC=FALSE) 
+wes_D_P = to.daily(WES.AX$WES.AX.Adjusted, OHLC=FALSE) 
+csl_D_P = to.daily(CSL.AX$CSL.AX.Adjusted, OHLC=FALSE) 
+axjo_D_P <- to.daily(AXJO$AXJO.Adjusted, OHLC = FALSE)
+colnames(axjo_D_P) <- "ASX200"
+
+#Merge daily price series
+daily_P = merge(cba_D_P,bhp_D_P,wes_D_P,csl_D_P)
+colnames(daily_P) <- c("cba","bhp","wes","csl")
+head(daily_P)
+tail(daily_P)
+
+#Log returns
+lr = na.omit(diff(log(daily_P)))
+colnames(lr) <- c("cba","bhp","wes","csl")
+head(lr)  
+tail(lr)
+
+market_lr <- na.omit(diff(log(axjo_D_P)))
+colnames(market_lr) <- "ASX200"
+head(market_lr)
+tail(market_lr)
+
+#ASX coded to match dates with stock data 
+common_dates   <- intersect(index(lr), index(market_lr))
+lr             <- lr[common_dates]
+market_lr      <- market_lr[common_dates]
+
+# Momentum and overreaction
+reg_data <- data.frame(
+  date      = index(lr),
+  coredata(lr),
+  market_lr = coredata(market_lr)
+)
+
+# Clean column names
+colnames(reg_data) <- c("date", "cba", "bhp", "wes", "csl", "market_lr")
+
+# Check it looks right
+head(reg_data)
+nrow(reg_data)
+
+# Create momentum and overreaction variables for all stocks
+for (i in seq_along(colnames(lr))) {
+  name <- colnames(lr)[i]
+  ret  <- reg_data[[name]]
+  sd_r <- sd(ret, na.rm = TRUE)
+  
+  # Momentum: past 20-day cumulative return lagged 1 day
+  reg_data[[paste0(name, "_momentum")]] <- lag(
+    rollsum(ret, k = 20, fill = NA, align = "right"), 1
+  )
+  
+  # Overreaction: flags returns beyond ±2 standard deviations
+  reg_data[[paste0(name, "_large_pos")]] <- lag(
+    ifelse(ret >  2 * sd_r, 1, 0), 1
+  )
+  reg_data[[paste0(name, "_large_neg")]] <- lag(
+    ifelse(ret < -2 * sd_r, 1, 0), 1
+  )
+}
+
+# RBA Variable 
+rba_rate <- read_rba(series_id = "FIRMMCRTD")
+
+# Clean it up
+rba_rate <- rba_rate %>%
+  select(date, value) %>%
+  rename(cash_rate = value) %>%
+  mutate(date = as.Date(date)) %>%
+  filter(date >= as.Date("2014-01-01") &
+           date <= as.Date("2024-12-31"))
+
+head(rba_rate)
+tail(rba_rate)
+
+# Binary 
+rba_rate <- rba_rate %>%
+  arrange(date) %>%
+  mutate(
+    rate_change = cash_rate - lag(cash_rate),           # actual size of change
+    hike        = ifelse(rate_change > 0, 1, 0),        # 1 = rate hike
+    cut         = ifelse(rate_change < 0, 1, 0),        # 1 = rate cut
+    change      = ifelse(rate_change != 0, 1, 0)        # 1 = any change
+  )
+
+# Check counts of hikes 
+cat("Rate hikes:", sum(rba_rate$hike,   na.rm = TRUE), "\n")
+cat("Rate cuts:",  sum(rba_rate$cut,    na.rm = TRUE), "\n")
+cat("No change:",  sum(rba_rate$change == 0, na.rm = TRUE), "\n")
+
+# Sanity check
+cat("Hike dates:\n")
+print(rba_rate$date[rba_rate$hike == 1])
+
+cat("\nCut dates:\n")
+print(rba_rate$date[rba_rate$cut == 1])
+
+#  Merge into reg_data by date
+reg_data <- reg_data %>%
+  left_join(rba_rate %>% 
+              select(date, rate_change, hike, cut, change),
+            by = "date") %>%
+  mutate(
+    rate_change = replace_na(rate_change, 0),
+    hike        = replace_na(hike, 0),
+    cut         = replace_na(cut, 0),
+    change      = replace_na(change, 0)
+  )
+
+# Step 3: Add post announcement days
+reg_data <- reg_data %>%
+  mutate(
+    hike_post1 = lag(hike, 1, default = 0),
+    hike_post2 = lag(hike, 2, default = 0),
+    cut_post1  = lag(cut,  1, default = 0),
+    cut_post2  = lag(cut,  2, default = 0)
+  )
+
+# Step 4: Verify it worked
+cat("\nIn reg_data:\n")
+cat("Hike days:",      sum(reg_data$hike),       "\n")
+cat("Cut days:",       sum(reg_data$cut),        "\n")
+cat("Post hike days:", sum(reg_data$hike_post1), "\n")
+cat("Post cut days:",  sum(reg_data$cut_post1),  "\n")
+
+# Sanity check
+# Find which cut date didn't match a trading day
+rba_cut_dates <- rba_rate$date[rba_rate$cut == 1]
+cat("Cut dates not in reg_data:\n")
+print(rba_cut_dates[!rba_cut_dates %in% reg_data$date])
+# Emergency RBA meeting date 
+
+# Risk free rate and excess returns 
+# Download 90-day bank bill rate from RBA
+rf_data <- read_rba(series_id = "FIRMMBAB90")
+
+# Cleaning rf data 
+rf_data <- rf_data %>%
+  select(date, value) %>%
+  rename(rf_annual = value) %>%
+  mutate(
+    date     = as.Date(date),
+    # Convert annual rate to daily
+    rf_daily = rf_annual / 100 / 252
+  ) %>%
+  filter(date >= as.Date("2014-01-01") &
+           date <= as.Date("2024-12-31"))
+
+head(rf_data)
+
+reg_data <- reg_data %>%
+  left_join(rf_data %>% select(date, rf_daily),
+            by = "date")
+
+# Forward fill any missing days
+reg_data <- reg_data %>%
+  fill(rf_daily, .direction = "down")
+
+# calculate excess returns with Rf
+reg_data$cba_excess    <- reg_data$cba    - reg_data$rf_daily
+reg_data$bhp_excess    <- reg_data$bhp    - reg_data$rf_daily
+reg_data$wes_excess    <- reg_data$wes    - reg_data$rf_daily
+reg_data$csl_excess    <- reg_data$csl    - reg_data$rf_daily
+reg_data$market_excess <- reg_data$market_lr - reg_data$rf_daily
+
+#CAPM 
+capm_cba <- lm(cba_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 cba_momentum +
+                 cba_large_pos + cba_large_neg,
+               data = reg_data)
+summary(capm_cba)
+
+### BHP ###
+capm_bhp <- lm(bhp_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 bhp_momentum +
+                 bhp_large_pos + bhp_large_neg,
+               data = reg_data)
+summary(capm_bhp)
+
+### WES ###
+capm_wes <- lm(wes_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 wes_momentum +
+                 wes_large_pos + wes_large_neg,
+               data = reg_data)
+summary(capm_wes)
+
+### CSL ###
+
+capm_csl <- lm(csl_excess ~ market_excess + hike + cut +
+                 hike_post1 + cut_post1 +
+                 csl_momentum +
+                 csl_large_pos + csl_large_neg,
+               data = reg_data)
+summary(capm_csl)
+
+
+```
+
+## Declaration
+
+This analysis is descriptive in nature. We estimate the correlation of four ASX-listed log returns and new information in the market over the period 2014-2024, testing whether Efficient Market Hypothesis (EMH) holds. We classify the new information as RBA Monetary policy announcements to see whether they produce abnormal stock returns, and partially control for behavioural variables to increase the models explanatory power.
+
+## Econometric Specification 
+
+We use the Capital Asset Pricing model to determine if returns are abnormal in comparison to the market.
+
+$$R_{i,t} - R_{f,t} = \alpha_i + \beta_i(R_{m,t} - R_{f,t}) + 
+\gamma_1 Hike_t + \gamma_2 Cut_t + 
+\delta_1 Hike\_Post1_t + \delta_2 Cut\_Post1_t +
+\lambda_i Mom_{i,t} + \phi_i LargePos_{i,t} + 
+\theta_i LargeNeg_{i,t} + \varepsilon_{i,t}$$
+
+Where:
+
+- Ri,t is the return on an individual asset at time t
+
+- Rf,t is the return on a riskless asset at time t
+
+- (Rm,t - Rf,t) is the market return minus the risk free rate. This helps explain the additional compensation investors receive for taking on risk, and is a fundamental component of the CAPM model.
+
+- Alpha refers to an assets ability to earn abnormal returns relative to the market return. If alpha is not equal to zero, this would imply that an asset is mispriced which contradicts efficient market hypothesis
+
+- Beta is the coefficient measuring the sensitivity of the security to market movements. It is not relevant as this is a risk-return profile.
+
+<!-- -->
+
+- Alpha refers to an assets ability to earn abnormal returns relative to the market return
+
+<!-- -->
+
+- Hike,t is a binary variable equal to 1 on the days during the period that the RBA raised the interest rate, 0 if opposite.
+
+- Cut,t is a binary variable equal to 1 on the days during the period that the RBA cut the interest rate, 0 if opposite.
+
+- Hike_Post1t is a binary variable equal to 1 on the trading day after the RBA raised the interest rate to account for a lag in reaction to information, 0 if opposite.
+
+- Cut_Post1t is a binary variable equal to 1 on the trading day after the RBA cut the interest rate to account for a lag in reaction to information, 0 if opposite.
+
+- Momi,t is the 20 day cumulative log return for a given stock, lagged by a trading day. It is the first behavioural variable in this model, documenting momentum bias (Jegadeesh & Titman, 1993).
+
+- Largepos is a binary variable equal to 1 if yesterdays return exceeded +2 standard deviations from the mean, 0 if opposite. This documents overreaction bias (De Bondt & Thaler, 1985).
+
+- LargeNeg is a binary variable equal to 1 if yesterdays return was below -2 standard deviations from the mean, 0 if opposite. This documents overreaction bias (De Bondt & Thaler, 1985).
+
+- Error term is the unexplained portion of the stocks return on day t. It is commonly used as a measure for idiosyncratic risk, but will be interpreted as omitted factors.
+
+### Why CAPM?
+
+The CAPM provides a framework to understand the relationship between a security's expected return and systematic risk. By using the market excess component of the model, abnormal returns can be isolated. If the market is truly efficient, each security's alpha value (intercept) should be equal to 0, implying that information does not impact stock performance. Additionally, the information and behavioural variables provide further explanatory power.
+
+## Interpretation of Results 
+
+```{r pressure, echo=FALSE}
+library(stargazer)
+library(kableExtra)
+library(dplyr)
+
+
+# Function to extract coefficients from standard lm output
+format_coef <- function(model, row) {
+  coefs <- summary(model)$coefficients
+  est   <- formatC(coefs[row, 1], format = "f", digits = 6)
+  se    <- formatC(coefs[row, 2], format = "f", digits = 6)
+  p     <- coefs[row, 4]
+  
+  stars <- ifelse(p < 0.01, "***",
+           ifelse(p < 0.05, "**",
+           ifelse(p < 0.10, "*", "")))
+  
+  paste0(est, stars, " (", se, ")")
+}
+
+# Variable names
+var_names <- c("Alpha (Intercept)",
+               "Market Excess Return (β)",
+               "Rate Hike",
+               "Rate Cut",
+               "Post Hike Day 1",
+               "Post Cut Day 1",
+               "Momentum",
+               "Overreaction (+)",
+               "Overreaction (-)")
+
+# Build coefficient table
+reg_table <- data.frame(
+  Variable = var_names,
+  CBA      = sapply(1:9, function(i) format_coef(capm_cba, i)),
+  BHP      = sapply(1:9, function(i) format_coef(capm_bhp, i)),
+  WES      = sapply(1:9, function(i) format_coef(capm_wes, i)),
+  CSL      = sapply(1:9, function(i) format_coef(capm_csl, i)),
+  stringsAsFactors = FALSE
+)
+
+# Summary statistics rows — all as character to match reg_table
+r2_row <- data.frame(
+  Variable = "R²",
+  CBA      = as.character(round(summary(capm_cba)$r.squared,      3)),
+  BHP      = as.character(round(summary(capm_bhp)$r.squared,      3)),
+  WES      = as.character(round(summary(capm_wes)$r.squared,      3)),
+  CSL      = as.character(round(summary(capm_csl)$r.squared,      3)),
+  stringsAsFactors = FALSE
+)
+
+adj_r2_row <- data.frame(
+  Variable = "Adjusted R²",
+  CBA      = as.character(round(summary(capm_cba)$adj.r.squared,  3)),
+  BHP      = as.character(round(summary(capm_bhp)$adj.r.squared,  3)),
+  WES      = as.character(round(summary(capm_wes)$adj.r.squared,  3)),
+  CSL      = as.character(round(summary(capm_csl)$adj.r.squared,  3)),
+  stringsAsFactors = FALSE
+)
+
+obs_row <- data.frame(
+  Variable = "Observations",
+  CBA      = "2,711",
+  BHP      = "2,711",
+  WES      = "2,711",
+  CSL      = "2,711",
+  stringsAsFactors = FALSE
+)
+
+# Combine all rows
+final_table <- bind_rows(reg_table, r2_row, adj_r2_row, obs_row)
+
+# Render with kableExtra
+final_table %>%
+  kable(
+    caption   = "Table 5: Full CAPM Model — ASX Stocks (2014-2024)",
+    align     = c("l", "c", "c", "c", "c"),
+    col.names = c("Variable", "CBA", "BHP", "WES", "CSL")
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "bordered"),
+    full_width        = FALSE,
+    font_size         = 13
+  ) %>%
+  row_spec(0,
+           bold       = TRUE,
+           background = "#2c7bb6",
+           color      = "white") %>%
+  row_spec(nrow(final_table) - 2,
+           extra_css  = "border-top: 2px solid black;") %>%
+  row_spec(nrow(final_table),
+           extra_css  = "border-bottom: 2px solid black;") %>%
+  column_spec(1, bold  = TRUE, width = "10em") %>%
+  column_spec(2:5,      width = "7em") %>%
+  add_footnote(
+    c("Standard errors in top parentheses.",
+      "Rf = 90-day Bank Accepted Bill Rate (RBA).",
+      "*** p<0.01, ** p<0.05, * p<0.10"),
+    notation = "none"
+  )
+```
+
+### Alpha:
+
+WES is the only stock which has a statistically significant alpha value (p= 0.015). It's estimated alpha of 0.000464 implies that the WES stock is expected to have a return that is 0.0464% per day higher than the CAPM predicts. Additionally, there is sufficient evidence to reject the null hypothesis at the 0.05 level. This finding from the CAPM model suggests WES consistently outperforms its expected return at the given level of systematic risk which contradicts EMH (alpha not equal to 0). On the other hand, the other stocks abnormal returns can not be explained by by the model, implying that these returns relfect all current market information and support EMH.
+
+### Beta:
+
+The estimated BHP and CBA beta values (1.22 & 1.11) indicate that a 1% increase in market excess returns is associated with a (1.22% & 1.11%) increase in the assets returns, on average. These are the most sensitive to market risk, indicating that wider adverse economic conditions affect these stocks the most. WES and CSL returns are less driven by systematic risk with a beta below 1, indicating other risk factors could explain their performance. All beta values are significant at the 1% level.
+
+### RBA variables: 
+
+There is sufficient evidence to reject the null hypothesis of no significance for CBA and BHP stocks at the 0.05 level. The coefficient of -0.0093 on the rate cut dummy indicates that excess returns are on average 0.93 percentage points lower on days when the RBA cuts the cash rate. This could be explained by BHP's sensitivity to exchange rates, where rate cuts can weaken the AUD. On the other hand, The coefficient of -0.0043 indicates that ceteris paribus, CBA excess returns are on average 0.43 percentage points lower on the day following an RBA rate hike. This observation is intuitive as demand for loans and investment may decrease, as the cost of servicing debt increases. These results show consistency with their high beta values of 1 because both stocks are the most sensitive to macroeconomic conditions. This delayed negative reaction from the CBA stock is a contradiction of EMH, as the market does not fully adjust to information of monetary policy tightening on the announcement day. As observed in the data table, values for the other stocks are non-significant, suggesting the market is efficient in reaction to monetary policy decisions.
+
+### Behavioural variables:
+
+CSL illustrates overreaction from investors, following behavioural findings from DeBondt and Thaler. At a significance level of 1% for both overreaction variables (postive and negative) these values demonstrate an inverse relationship. After a large positive day, CSL returns fall the following day, and after a large negative day, returns grow the next day. This finding correlates with a weak form of market inefficiency as past price movements predict future movements. BHP's significant negative momentum suggests that when BHP has been trending upwards over the past 20 days, it tends to trend down the following day towards the mean. This finding also violates EMH because if markets were efficient, past 20-day returns should have no predictive power over future returns. Lastly, CBA's positive coefficient implies that as prices increase on a given day, they will continue to rise the following day. If EMH held, the prices would jump on the first day of receiving good news and flatten the following day. This suggests investors under react to information from the CBA, allowing for a prediction of an upward movement in prices.
+
+### Model fitness:
+
+CBA has the highest R-squared value. This is consistent with an insignificant alpha value and high beta, reflecting that CBA tracks the market closely relative to other stocks. While BHP features similar characteristics, the results appear to show that BHP carries more idiosyncratic relative to CBA, reflected in its lower r-squared. CSL on the other hand is the most influenced by idiosyncratic risk with the lowest r-squared value, this is intuitive given CSL's overreaction results, conservative beta value, and its presence as a global company.
+
+## Model limitations: 
+
+1.  Stock selection: Industries have different risk exposures to macroeconomic information. As discovered in the findings, CSL's market inefficiency is heavily attributed to idiosyncratic information, rather than macroeconomic changes. Additionally, CSL is a global company and the CAPM only captures Australian interest rate information, meaning that omitted variable bias exists.
+
+2.   Assumptions of the CAPM: The CAPM assumes constant variance (homoskedasticity) and no autocorrelation. High variance data (daily) is susceptible to breaking these assumptions and this makes the standard errors inaccurate. Using Newey-West standard errors is a method to provide constant variance and will be explored in a robustness analysis.
+
+3.  Omitted Variable Bias: Following the first limitation, other macroeconomic variables such as exchange rates and commodity prices have not been included in the model. While some variables were omitted due to data limitations (missing data and bias risk from forward filling), others may have provided a meaningful result. From CSL's r-squared value, 68% of the data is unexplained by the CAPM.
+
+4.  Single factor model: The CAPM does not consider size and value factors to help explain returns. Fama and French (1993) suggest adding 'small minus big' and 'high minus low' variable to see whether the stock behaves like a value/growth stock or a big/small stock portfolio. Results may therefore be inflated which impacts model accuracy.
+
+5.  RBA coincidence: The RBA announcements on a given day may coincide with other events that influence the market. Consider an example where the RBA announces an interest rate hike, but on the same day, a major geopolitical event occurs. Our model provides no means of isolating the magnitude of the interest rate effect from the geopolitical event, and a biased assumption about the strength of the interest rate effect on prices may be made.
+
+6.  Binary RBA variable: The dummy variables do not factor whether the market expects the RBA to tighten or expand monetary policy. Interest rate decisions are commonly forecasted and expected, and this priced in the market. Unexpected changes to the interest rate however are not accounted for and may have a larger propotional impact on prices. Without market expectations in the model, this cannot be factored for. On the other hand, the implementation of magnitude effects (actual interest rate values) were tested in the CAPM, but no significant values were found (variable was excluded from the result table). This could be explained by the few interest rate changes during the pre-covid period, leaving significantly less observations compared to systematic risk. The model therefore has less explanatory power for the monetary policy effect.
