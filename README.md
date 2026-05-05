@@ -19,7 +19,6 @@ usethis::create_from_github(
   fork = FALSE
 )
 
-
 (alternatively instead of writing your name you can just use:
 "~/Desktop" after destdir)
 
@@ -27,14 +26,14 @@ usethis::create_from_github(
 2. Open the file:
 
 If your machine automatically opens the Rproj, then great. In the files section
-on the right, click on ECCproject.R and it will load. 
+on the right, click on NewECC.R and it will load. 
 
 IF NOT
 
 Go to your saved file location, find the ECC3479- folder, and double click
-ECC3479.Rproj to open in Rstudio. In the files sectionon the right, click on 
-ECCproject.R and it will load. 
+NewECC.Rto open in Rstudio. 
 
+If repository is already cloned onto your machine from earlier, you will not need to repeat this entire process. 
 
 If your global environment is full, clear your global environment:
 
@@ -42,9 +41,24 @@ rm(list = ls())
 
 Otherwise DO NOT RUN THIS CODE. 
 
+OR an even simpler version if you are having difficulties. You can copy and paste the raw code from the NewECC.R file into your R studio. The data is downloaded from Yahoo finance and the RBA respectively, using the quantmod and readrba packages. It is fully cleaned through R so no additional files need to be taken from the repository. 
+
 2. Cleaning the data 
 
-Run the following from line 31-40: 
+Run the code from line 4 to 193. This contains every single variable, and all merges into the regression data.  
+
+3. Regression models
+
+Run the code from line 395 to 425. This will print the raw regression results. 
+
+4. Rmd file
+
+Open the Rmd file. If it was cloned on your machine properly, you will see it in the tabs. If not, you can simply access it from the ECC3479- folder and open it with R studio. Knit the file at the top to view in html format.  
+
+
+------
+
+Everything here is from the old README.md. I have left it here in case you still require it for past assessments. 
 
 install.packages("readxl")
 install.packages("zoo")
