@@ -5,10 +5,14 @@ install.packages("quantmod")
 install.packages("PerformanceAnalytics")
 install.packages("readrba")
 install.packages("tidyverse")
+install.packages("stargazer")
+install.packages("kableExtra")
+library(kableExtra)
 library(tidyverse)
 library(readrba)
 library(PerformanceAnalytics)
 library(quantmod)
+library(stargazer)
 
 #Stocks 
 options("getSymbols.warning4.0"=FALSE)
@@ -187,6 +191,7 @@ reg_data$bhp_excess    <- reg_data$bhp    - reg_data$rf_daily
 reg_data$wes_excess    <- reg_data$wes    - reg_data$rf_daily
 reg_data$csl_excess    <- reg_data$csl    - reg_data$rf_daily
 reg_data$market_excess <- reg_data$market_lr - reg_data$rf_daily
+
 
 
 #Final check before EDA 
@@ -418,6 +423,7 @@ capm_csl <- lm(csl_excess ~ market_excess + hike + cut +
                  csl_large_pos + csl_large_neg,
                data = reg_data)
 summary(capm_csl)
+
 
 gert::git_add(".")
 gert::git_commit("Beginning EDA")
