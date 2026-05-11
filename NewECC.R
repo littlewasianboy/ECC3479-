@@ -7,12 +7,16 @@ install.packages("readrba")
 install.packages("tidyverse")
 install.packages("stargazer")
 install.packages("kableExtra")
+install.packages("lmtest")
+install.packages("sandwich")
 library(kableExtra)
 library(tidyverse)
 library(readrba)
 library(PerformanceAnalytics)
 library(quantmod)
 library(stargazer)
+library(lmtest)
+library(sandwich)
 
 #Stocks 
 options("getSymbols.warning4.0"=FALSE)
@@ -424,6 +428,161 @@ capm_csl <- lm(csl_excess ~ market_excess + hike + cut +
                data = reg_data)
 summary(capm_csl)
 
+#Robustness 
+
+# Confirming if autocorrelation and heteroskedasticity exists
+
+bgtest(capm_cba, order = 2, type = "Chisq") # REJECT, CORRELATION EXISTS
+bgtest(capm_bhp, order = 2, type = "Chisq") # REJECT, CORRELATION EXISTS
+bgtest(capm_wes, order = 2, type = "Chisq")
+bgtest(capm_csl, order = 2, type = "Chisq")
+
+# Auxiliary regression 
+
+# Create a clean version of reg_data matching model observations
+reg_data_clean <- na.omit(reg_data)
+
+# CBA
+res_cba   <- residuals(capm_cba)
+white_cba <- lm(I(res_cba^2) ~ market_excess + hike + cut +
+                  hike_post1 + cut_post1 +
+                  cba_momentum + cba_large_pos +
+                  cba_large_neg +
+                  I(market_excess^2) + I(cba_momentum^2) +
+                  I(cba_large_pos^2) + I(cba_large_neg^2) +
+                  market_excess:hike + market_excess:cut +
+                  market_excess:cba_momentum +
+                  market_excess:cba_large_pos +
+                  market_excess:cba_large_neg,
+                data = reg_data_clean)
+summary(white_cba)
+
+# BHP
+res_bhp   <- residuals(capm_bhp)
+white_bhp <- lm(I(res_bhp^2) ~ market_excess + hike + cut +
+                  hike_post1 + cut_post1 +
+                  bhp_momentum + bhp_large_pos +
+                  bhp_large_neg +
+                  I(market_excess^2) + I(bhp_momentum^2) +
+                  I(bhp_large_pos^2) + I(bhp_large_neg^2) +
+                  market_excess:hike + market_excess:cut +
+                  market_excess:bhp_momentum +
+                  market_excess:bhp_large_pos +
+                  market_excess:bhp_large_neg,
+                data = reg_data_clean)
+summary(white_bhp)
+
+# WES
+res_wes   <- residuals(capm_wes)
+white_wes <- lm(I(res_wes^2) ~ market_excess + hike + cut +
+                  hike_post1 + cut_post1 +
+                  wes_momentum + wes_large_pos +
+                  wes_large_neg +
+                  I(market_excess^2) + I(wes_momentum^2) +
+                  I(wes_large_pos^2) + I(wes_large_neg^2) +
+                  market_excess:hike + market_excess:cut +
+                  market_excess:wes_momentum +
+                  market_excess:wes_large_pos +
+                  market_excess:wes_large_neg,
+                data = reg_data_clean)
+summary(white_wes)
+
+# CSL
+res_csl   <- residuals(capm_csl)
+white_csl <- lm(I(res_csl^2) ~ market_excess + hike + cut +
+                  hike_post1 + cut_post1 +
+                  csl_momentum + csl_large_pos +
+                  csl_large_neg +
+                  I(market_excess^2) + I(csl_momentum^2) +
+                  I(csl_large_pos^2) + I(csl_large_neg^2) +
+                  market_excess:hike + market_excess:cut +
+                  market_excess:csl_momentum +
+                  market_excess:csl_large_pos +
+                  market_excess:csl_large_neg,
+                data = reg_data_clean)
+summary(white_csl)
+
+#Newey-west 
+
+# CBA
+T_cba   <- nobs(capm_cba)
+m_cba   <- floor(0.75 * T_cba^(1/3))
+NW_cba  <- NeweyWest(capm_cba, lag = m_cba - 1, prewhite = FALSE, adjust = TRUE)
+cat("=== CBA — Newey-West HAC ===\n")
+cat("T =", T_cba, "| m =", m_cba, "| lag =", m_cba - 1, "\n")
+print(coeftest(capm_cba, vcov = NW_cba))
+
+# BHP
+T_bhp   <- nobs(capm_bhp)
+m_bhp   <- floor(0.75 * T_bhp^(1/3))
+NW_bhp  <- NeweyWest(capm_bhp, lag = m_bhp - 1, prewhite = FALSE, adjust = TRUE)
+cat("\n=== BHP — Newey-West HAC ===\n")
+cat("T =", T_bhp, "| m =", m_bhp, "| lag =", m_bhp - 1, "\n")
+print(coeftest(capm_bhp, vcov = NW_bhp))
+
+# WES
+T_wes   <- nobs(capm_wes)
+m_wes   <- floor(0.75 * T_wes^(1/3))
+NW_wes  <- NeweyWest(capm_wes, lag = m_wes - 1, prewhite = FALSE, adjust = TRUE)
+cat("\n=== WES — Newey-West HAC ===\n")
+cat("T =", T_wes, "| m =", m_wes, "| lag =", m_wes - 1, "\n")
+print(coeftest(capm_wes, vcov = NW_wes))
+
+# CSL
+T_csl   <- nobs(capm_csl)
+m_csl   <- floor(0.75 * T_csl^(1/3))
+NW_csl  <- NeweyWest(capm_csl, lag = m_csl - 1, prewhite = FALSE, adjust = TRUE)
+cat("\n=== CSL — Newey-West HAC ===\n")
+cat("T =", T_csl, "| m =", m_csl, "| lag =", m_csl - 1, "\n")
+print(coeftest(capm_csl, vcov = NW_csl))
+
+# Different period CAPM
+
+reg_post <- reg_data %>%
+  filter(date >= as.Date("2021-01-01")) %>%
+  select(-cut, -cut_post1)
+
+#CBA post subperiod 
+
+# CBA
+capm_cba_post <- lm(cba_excess ~ market_excess +
+                      hike +
+                      hike_post1 +
+                      cba_momentum +
+                      cba_large_pos +
+                      cba_large_neg,
+                    data = reg_post)
+summary(capm_cba_post)
+
+# BHP
+capm_bhp_post <- lm(bhp_excess ~ market_excess +
+                      hike +
+                      hike_post1 +
+                      bhp_momentum +
+                      bhp_large_pos +
+                      bhp_large_neg,
+                    data = reg_post)
+summary(capm_bhp_post)
+
+# WES
+capm_wes_post <- lm(wes_excess ~ market_excess +
+                      hike +
+                      hike_post1 +
+                      wes_momentum +
+                      wes_large_pos +
+                      wes_large_neg,
+                    data = reg_post)
+summary(capm_wes_post)
+
+# CSL
+capm_csl_post <- lm(csl_excess ~ market_excess +
+                      hike +
+                      hike_post1 +
+                      csl_momentum +
+                      csl_large_pos +
+                      csl_large_neg,
+                    data = reg_post)
+summary(capm_csl_post)
 
 gert::git_add(".")
 gert::git_commit("Beginning EDA")
