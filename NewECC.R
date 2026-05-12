@@ -161,7 +161,7 @@ cat("Post cut days:",  sum(reg_data$cut_post1),  "\n")
 rba_cut_dates <- rba_rate$date[rba_rate$cut == 1]
 cat("Cut dates not in reg_data:\n")
 print(rba_cut_dates[!rba_cut_dates %in% reg_data$date])
-# Emergency RBA meeting date 
+
 
 # Risk free rate and excess returns 
 # Download 90-day bank bill rate from RBA
@@ -439,7 +439,6 @@ bgtest(capm_csl, order = 2, type = "Chisq")
 
 # Auxiliary regression 
 
-# Create a clean version of reg_data matching model observations
 reg_data_clean <- na.omit(reg_data)
 
 # CBA
@@ -583,6 +582,56 @@ capm_csl_post <- lm(csl_excess ~ market_excess +
                       csl_large_neg,
                     data = reg_post)
 summary(capm_csl_post)
+
+# Magnitutde test 
+reg_data %>%
+  filter(rate_change != 0) %>%
+  select(date, rate_change, hike, cut) %>%
+  print()
+
+# CBA
+capm_cba_mag <- lm(cba_excess ~ market_excess +
+                     rate_change +
+                     hike_post1 +
+                     cut_post1 +
+                     cba_momentum +
+                     cba_large_pos +
+                     cba_large_neg,
+                   data = reg_data)
+summary(capm_cba_mag)
+
+# BHP
+capm_bhp_mag <- lm(bhp_excess ~ market_excess +
+                     rate_change +
+                     hike_post1 +
+                     cut_post1 +
+                     bhp_momentum +
+                     bhp_large_pos +
+                     bhp_large_neg,
+                   data = reg_data)
+summary(capm_bhp_mag)
+
+# WES
+capm_wes_mag <- lm(wes_excess ~ market_excess +
+                     rate_change +
+                     hike_post1 +
+                     cut_post1 +
+                     wes_momentum +
+                     wes_large_pos +
+                     wes_large_neg,
+                   data = reg_data)
+summary(capm_wes_mag)
+
+# CSL
+capm_csl_mag <- lm(csl_excess ~ market_excess +
+                     rate_change +
+                     hike_post1 +
+                     cut_post1 +
+                     csl_momentum +
+                     csl_large_pos +
+                     csl_large_neg,
+                   data = reg_data)
+summary(capm_csl_mag)
 
 gert::git_add(".")
 gert::git_commit("Beginning EDA")
