@@ -45,7 +45,7 @@ OR an even simpler version if you are having difficulties. You can copy and past
 
 2. Cleaning the data 
 
-Run the code from line 4 to 193. This contains every single variable, and all merges into the regression data.  
+Run the code from line 4 to 197. This contains every single variable, and all merges into the regression data.  
 
 3. Regression models
 
@@ -54,6 +54,14 @@ Run the code from line 395 to 425. This will print the raw regression results.
 4. Rmd file
 
 Open the Rmd file. If it was cloned on your machine properly, you will see it in the tabs. If not, you can simply access it from the ECC3479- folder and open it with R studio. Knit the file at the top to view in html format.  
+
+5. Robustness Analysis
+
+Run the code from 435 to 635. This contains all robustness tests. 
+
+6. Robustness Rmd file
+
+Open the Robustness_Analysis.Rmd file. Similar to step 4, assuming cloning worked on your machine, you will see it in the tabs. If not, access it from the ECC3479- folder, or alternatively the GitHub if fatal issues occur. 
 
 
 ------
