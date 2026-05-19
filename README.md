@@ -64,7 +64,21 @@ Run the code from 435 to 635. This contains all robustness tests.
 Open the Robustness_Analysis.Rmd file. Similar to step 4, assuming cloning worked on your machine, you will see it in the tabs. If not, access it from the ECC3479- folder, or alternatively the GitHub if fatal issues occur. 
 
 
-------
+--------------------------------------------------------------------------------------------------------------------------------
+
+Replication package
+
+Open the Replicationpackage.R on your machine. 
+
+1. Download the relevant data onto your machine. Run lines 4-371.
+2. Figure 1 the exclusion table can be generated from lines 386-418.
+3. Figure 2 the summary statistics table can be generated from lines 422-451.
+4. Figure 3 the regression table can be generated from lines 458-500.
+5. Figure 4 the Newey-West HAC table can be generated from lines 511-562.
+6. Figure 5 the Post-Covid table can be generated from lines 567-617.
+7. Figure 6 the alternative specification table can be generated from lines 627-677.
+
+--------------------------------------------------------------------------------------------------------------------------------
 
 Everything here is from the old README.md. I have left it here in case you still require it for past assessments. 
 
