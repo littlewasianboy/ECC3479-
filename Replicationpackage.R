@@ -538,7 +538,7 @@ row_counts <- row_counts[c("BHP", "CBA", "CSL", "WES")]
 comparison_data %>%
   select(Variable, OLS_Est, HAC_Est) %>% 
   kable(
-    caption   = "Table 4: Robustness Check — Side-by-Side Comparison of OLS and Newey-West HAC Estimations",
+    caption   = "Figure 4: HAC VS Baseline Model",
     align     = c("l", "c", "c"),
     col.names = c("Factor / Variable Name", "Original OLS Model", "Newey-West HAC Robust Model"),
     format    = "html"
@@ -593,7 +593,7 @@ row_counts <- row_counts[c("BHP", "CBA", "CSL", "WES")]
 post_covid_comparison %>%
   select(Variable, Baseline_Est, Post_Est) %>% 
   kable(
-    caption   = "Table 4: Subperiod Analysis — Comprehensive Comparison of Baseline OLS and Post-COVID Estimations",
+    caption   = "Figure 5: Subperiod Results VS Baseline Model",
     align     = c("l", "c", "c"),
     col.names = c("Factor / Variable Name", "Full Baseline Model", "Post-COVID Subperiod Model"),
     format    = "html"
@@ -644,19 +644,16 @@ magnitude_comparison <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# Arrange to ensure grouping math runs seamlessly
+
 magnitude_comparison <- magnitude_comparison %>% arrange(Stock)
 
-# Explicit layout grouping calculation
+
 row_counts <- table(magnitude_comparison$Stock)[c("BHP", "CBA", "CSL", "WES")]
 
-# ==============================================================================
-# 2. RENDER GRAPHIC GENERATION USING THE KABLE FORMATTING ENGINE
-# ==============================================================================
 magnitude_comparison %>%
   select(Variable, Binary_Est, Magnitude_Est) %>% 
   kable(
-    caption   = "Table 5: Policy Specification Analysis — Side-by-Side Comparison of Binary Dummies and Continuous Magnitude Estimations",
+    caption   = "Figure 6: Magnitude Specification VS Baseline Model",
     align     = c("l", "c", "c"),
     col.names = c("Factor / Variable Name", "Baseline Model", "Rate Change Magnitude Specification"),
     format    = "html"
@@ -667,7 +664,7 @@ magnitude_comparison %>%
     font_size         = 11
   ) %>%
   row_spec(0, bold = TRUE, background = "#2c7bb6", color = "white") %>%
-  # Slice into stock specific sections cleanly
+
   pack_rows(index = row_counts) %>%
   column_spec(1, bold = TRUE, width = "22em") %>%
   column_spec(2, width = "16em") %>%
